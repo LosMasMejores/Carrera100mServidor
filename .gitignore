@@ -3,3 +3,4 @@
 .settings/
 build/
 WebContent/
+!WebContent/WEB-INF/web.xml
