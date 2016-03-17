@@ -15,7 +15,7 @@ public class Carrera100 {
 
 	static Integer MAX_ATLETAS = 4;
 	Resultado resultado = new Resultado();
-	double t_inicio, t_llegada;
+	long t_inicio, t_llegada;
 	int numPreparados, numListos;
 	
 	
@@ -86,6 +86,8 @@ public class Carrera100 {
 			
 		}
 		
+		t_inicio = System.currentTimeMillis();
+		
 		return "ya!";
 	}
 	
@@ -95,10 +97,10 @@ public class Carrera100 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String llegada(@DefaultValue("0") @QueryParam(value="dorsal") int dorsal) {
 		
-		long tiempo = System.currentTimeMillis();
-		this.resultado.map.put(dorsal, tiempo);
+		t_llegada = System.currentTimeMillis();
+		this.resultado.map.put(dorsal, t_llegada - t_inicio);
 		
-		return Long.toString(tiempo);
+		return Long.toString(t_llegada - t_inicio);
 	}
 	
 	
