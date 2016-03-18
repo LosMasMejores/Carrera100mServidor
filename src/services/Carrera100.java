@@ -1,7 +1,5 @@
 package services;
 
-import java.util.concurrent.Semaphore;
-
 import javax.inject.Singleton;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -14,11 +12,13 @@ import javax.ws.rs.core.MediaType;
 @Path("/carrera100")
 @Singleton
 public class Carrera100 {
-	static Integer MAX_ATLETAS = 4;
-	static Semaphore SEM_CARRERAS = new Semaphore(1);
+	
+	static Integer NUM_ATLETAS = 6; // Numero de atletas totales que participan
+	static Integer NUM_CARRERAS = 3; // Numero de MainCarrera que participan
+	
 	Resultado resultado = new Resultado();
 	long t_inicio, t_llegada;
-	int numPreparados, numListos;
+	int num_preparados, num_listos, num_terminadas, num_carreras = 0;
 	
 	
 	@Path("/reinicio")
@@ -26,29 +26,34 @@ public class Carrera100 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String reinicio() {
 		
-		int num = SEM_CARRERAS.drainPermits();
+		Integer dorsal; // Indica el dorsal que le corresponde a cada MainCarrera
+						// (dorsal, dorsal - 1, ..., dorsal - i; i = numero de corredores de MainCarrera)
 		
-		if (num == 1) {
-			resultado.map.clear();
-			t_inicio = t_llegada = numPreparados = numListos = 0;
+		synchronized(NUM_CARRERAS) {
 			
-			try {
-				SEM_CARRERAS.acquire();
-				SEM_CARRERAS.release();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			// Si no hay carreras esperando, reiniciamos los contadores
+			// Si ya se ha alcanzado el tope de carreras, avisamos
+			if (num_carreras == 0) {
+				t_inicio = t_llegada = num_preparados = num_listos = num_terminadas = 0;
+			} else if (num_carreras == NUM_CARRERAS) {
+				return "COMPLETO";
 			}
-		} else {
-			SEM_CARRERAS.release();
+			
+			num_carreras++;
+			dorsal = (NUM_ATLETAS / NUM_CARRERAS) * num_carreras; // Determinamos que dorsal le corresponde a MainCarrera
+			
+			if (num_carreras < NUM_CARRERAS) {
+				try {
+					NUM_CARRERAS.wait(); // Esperamos por el resto de MainCarreras
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			} else {
+				NUM_CARRERAS.notifyAll(); // Avisamos a las demas MainCarrera
+			}
 		}
 		
-		return "Reiniciado t_inicio: " +
-				this.t_inicio +
-				", t_llegada: " +
-				this.t_llegada +
-				", atletas inscritos: " +
-				this.numPreparados;
+		return dorsal.toString();
 	}
 	
 	
@@ -57,21 +62,18 @@ public class Carrera100 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String preparado() {
 		
-		synchronized (MAX_ATLETAS) {
+		synchronized (NUM_ATLETAS) {
 			
-			if (numPreparados == MAX_ATLETAS)
-				return "no hay sitio";
+			num_preparados++;
 			
-			numPreparados++;
-			
-			if (numPreparados < MAX_ATLETAS)
+			if (num_preparados < NUM_ATLETAS)
 				try {
-					MAX_ATLETAS.wait();
+					NUM_ATLETAS.wait(); // Esperamos por el resto de Atletas
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			else
-				MAX_ATLETAS.notifyAll();
+				NUM_ATLETAS.notifyAll(); // Avisamos a las demas Atletas
 			
 		}
 		
@@ -84,21 +86,18 @@ public class Carrera100 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String listo() {
 		
-		synchronized (MAX_ATLETAS) {
+		synchronized (NUM_ATLETAS) {
 			
-			if (numListos == MAX_ATLETAS)
-				return "no hay sitio";
+			num_listos++;
 			
-			numListos++;
-			
-			if (numListos < MAX_ATLETAS)
+			if (num_listos < NUM_ATLETAS)
 				try {
-					MAX_ATLETAS.wait();
+					NUM_ATLETAS.wait(); // Esperamos por el resto de Atletas
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			else
-				MAX_ATLETAS.notifyAll();
+				NUM_ATLETAS.notifyAll(); // Avisamos a las demas Atletas
 			
 		}
 		
@@ -114,7 +113,7 @@ public class Carrera100 {
 	public String llegada(@DefaultValue("0") @QueryParam(value="dorsal") int dorsal) {
 		
 		t_llegada = System.currentTimeMillis();
-		this.resultado.map.put(dorsal, t_llegada - t_inicio);
+		this.resultado.map.put(dorsal, t_llegada - t_inicio); // Almacenamos en Resultado los resultados
 		
 		return Long.toString(t_llegada - t_inicio);
 	}
@@ -125,6 +124,23 @@ public class Carrera100 {
 	@Produces(MediaType.APPLICATION_XML)
 	public Resultado resultados() {
 		
+		synchronized(NUM_CARRERAS) {
+			
+			num_terminadas++;
+			
+			if (num_terminadas < NUM_CARRERAS) {
+				try {
+					NUM_CARRERAS.wait(); // Esperamos por el resto de MainCarreras
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			} else {
+				num_carreras = 0;
+				NUM_CARRERAS.notifyAll(); // Avisamos a las demas MainCarrera
+			}
+		}
+		
 		return this.resultado;
 	}
+	
 }
