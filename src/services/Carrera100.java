@@ -1,5 +1,7 @@
 package services;
 
+import java.util.concurrent.Semaphore;
+
 import javax.inject.Singleton;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -12,8 +14,8 @@ import javax.ws.rs.core.MediaType;
 @Path("/carrera100")
 @Singleton
 public class Carrera100 {
-
 	static Integer MAX_ATLETAS = 4;
+	static Semaphore SEM_CARRERAS = new Semaphore(1);
 	Resultado resultado = new Resultado();
 	long t_inicio, t_llegada;
 	int numPreparados, numListos;
@@ -24,8 +26,22 @@ public class Carrera100 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String reinicio() {
 		
-		resultado.map.clear();
-		t_inicio = t_llegada = numPreparados = numListos = 0;
+		int num = SEM_CARRERAS.drainPermits();
+		
+		if (num == 1) {
+			resultado.map.clear();
+			t_inicio = t_llegada = numPreparados = numListos = 0;
+			
+			try {
+				SEM_CARRERAS.acquire();
+				SEM_CARRERAS.release();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} else {
+			SEM_CARRERAS.release();
+		}
 		
 		return "Reiniciado t_inicio: " +
 				this.t_inicio +
