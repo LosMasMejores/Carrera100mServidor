@@ -36,7 +36,7 @@ public class Carrera100 {
 			if (num_carreras == 0) {
 				t_inicio = t_llegada = num_preparados = num_listos = num_terminadas = 0;
 			} else if (num_carreras == NUM_CARRERAS) {
-				return "COMPLETO";
+				return "COMPLETO"; // Se ha alcanzado el numero de MainCarrera esperado
 			}
 			
 			num_carreras++;
