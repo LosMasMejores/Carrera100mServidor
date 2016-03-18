@@ -13,30 +13,47 @@ import javax.ws.rs.core.MediaType;
 @Singleton
 public class Carrera100 {
 	
-	static Integer NUM_ATLETAS = 6; // Numero de atletas totales que participan
-	static Integer NUM_CARRERAS = 3; // Numero de MainCarrera que participan
+	static Integer NUM_ATLETAS; // Numero de atletas totales que participan
+	static Integer NUM_CARRERAS; // Numero de MainCarrera que participan
 	
 	Resultado resultado = new Resultado();
 	long t_inicio, t_llegada;
 	int num_preparados, num_listos, num_terminadas, num_carreras = 0;
+	boolean fin_correcto = false;
 	
 	
 	@Path("/reinicio")
 	@GET
 	@Produces(MediaType.TEXT_PLAIN)
-	public String reinicio() {
+	public String reinicio(@DefaultValue("0") @QueryParam(value="carreras") int carreras,
+			@DefaultValue("0") @QueryParam(value="atletas") int atletas) {
 		
 		Integer dorsal; // Indica el dorsal que le corresponde a cada MainCarrera
 						// (dorsal, dorsal - 1, ..., dorsal - i; i = numero de corredores de MainCarrera)
 		
-		synchronized(NUM_CARRERAS) {
+		synchronized(this.getClass()) {
 			
-			// Si no hay carreras esperando, reiniciamos los contadores
-			// Si ya se ha alcanzado el tope de carreras, avisamos
+			// No se han enviado ningun dato
+			if (carreras == 0 || atletas == 0) {
+				return "INCORRECTO";
+			}
+			
+			// Somos el primer MainCarrera en llamar
+			// Reiniciamos los datos
 			if (num_carreras == 0) {
+				NUM_CARRERAS = carreras;
+				NUM_ATLETAS = atletas * carreras;
 				t_inicio = t_llegada = num_preparados = num_listos = num_terminadas = 0;
-			} else if (num_carreras == NUM_CARRERAS) {
-				return "COMPLETO"; // Se ha alcanzado el numero de MainCarrera esperado
+			}
+			
+			// No coinciden los datos enviados con los esperados
+			if (NUM_CARRERAS != carreras || NUM_ATLETAS != atletas * carreras) {
+				return "INCORRECTO";
+			}
+			
+			// Se ha alcanzado el numero de MainCarrera esperado
+			if (num_carreras == NUM_CARRERAS) {
+				return "COMPLETO";
 			}
 			
 			num_carreras++;
@@ -44,12 +61,12 @@ public class Carrera100 {
 			
 			if (num_carreras < NUM_CARRERAS) {
 				try {
-					NUM_CARRERAS.wait(); // Esperamos por el resto de MainCarreras
+					this.getClass().wait(); // Esperamos por el resto de MainCarreras
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			} else {
-				NUM_CARRERAS.notifyAll(); // Avisamos a las demas MainCarrera
+				this.getClass().notifyAll(); // Avisamos a las demas MainCarrera
 			}
 		}
 		
@@ -124,19 +141,26 @@ public class Carrera100 {
 	@Produces(MediaType.APPLICATION_XML)
 	public Resultado resultados() {
 		
-		synchronized(NUM_CARRERAS) {
+		synchronized(this.getClass()) {
 			
 			num_terminadas++;
 			
-			if (num_terminadas < NUM_CARRERAS) {
+			if (num_terminadas < NUM_CARRERAS && num_carreras != 0) {
 				try {
-					NUM_CARRERAS.wait(); // Esperamos por el resto de MainCarreras
+					fin_correcto = false;
+					this.getClass().wait(5000); // Esperamos por el resto de MainCarreras durante 5s
+					if (!fin_correcto) { // Si no ha llegado el ultimo MainCarrera, terminamos nosotros
+						num_carreras = 0;
+						fin_correcto = true;
+						System.out.println("/resultados timeout alcanzado");
+					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			} else {
 				num_carreras = 0;
-				NUM_CARRERAS.notifyAll(); // Avisamos a las demas MainCarrera
+				fin_correcto = true;
+				this.getClass().notifyAll(); // Avisamos a las demas MainCarrera
 			}
 		}
 		
