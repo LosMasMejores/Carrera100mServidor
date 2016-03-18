@@ -16,7 +16,7 @@ public class Carrera100 {
 	static Integer NUM_ATLETAS; // Numero de atletas totales que participan
 	static Integer NUM_CARRERAS; // Numero de MainCarrera que participan
 	
-	Resultado resultado = new Resultado();
+	Resultado resultado;
 	long t_inicio, t_llegada;
 	int num_preparados, num_listos, num_terminadas, num_carreras = 0;
 	boolean fin_correcto = false;
@@ -43,17 +43,18 @@ public class Carrera100 {
 			if (num_carreras == 0) {
 				NUM_CARRERAS = carreras;
 				NUM_ATLETAS = atletas * carreras;
+				resultado = new Resultado();
 				t_inicio = t_llegada = num_preparados = num_listos = num_terminadas = 0;
-			}
-			
-			// No coinciden los datos enviados con los esperados
-			if (NUM_CARRERAS != carreras || NUM_ATLETAS != atletas * carreras) {
-				return "INCORRECTO";
 			}
 			
 			// Se ha alcanzado el numero de MainCarrera esperado
 			if (num_carreras == NUM_CARRERAS) {
 				return "COMPLETO";
+			}
+			
+			// No coinciden los datos enviados con los esperados
+			if (NUM_CARRERAS != carreras || NUM_ATLETAS != atletas * carreras) {
+				return "INCORRECTO";
 			}
 			
 			num_carreras++;
@@ -147,13 +148,7 @@ public class Carrera100 {
 			
 			if (num_terminadas < NUM_CARRERAS && num_carreras != 0) {
 				try {
-					fin_correcto = false;
-					this.getClass().wait(5000); // Esperamos por el resto de MainCarreras durante 5s
-					if (!fin_correcto) { // Si no ha llegado el ultimo MainCarrera, terminamos nosotros
-						num_carreras = 0;
-						fin_correcto = true;
-						System.out.println("/resultados timeout alcanzado");
-					}
+					this.getClass().wait(); // Esperamos por el resto de MainCarreras
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
