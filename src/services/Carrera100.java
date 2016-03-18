@@ -19,7 +19,6 @@ public class Carrera100 {
 	Resultado resultado;
 	long t_inicio, t_llegada;
 	int num_preparados, num_listos, num_terminadas, num_carreras = 0;
-	boolean fin_correcto = false;
 	
 	
 	@Path("/reinicio")
@@ -154,7 +153,6 @@ public class Carrera100 {
 				}
 			} else {
 				num_carreras = 0;
-				fin_correcto = true;
 				this.getClass().notifyAll(); // Avisamos a las demas MainCarrera
 			}
 		}
